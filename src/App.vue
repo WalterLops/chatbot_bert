@@ -1,17 +1,32 @@
+/**/
 <template>
-  <div class="background-container" v-chat-scroll>
-    <div class="chat-container" v-chat-scroll>
+  <div class="background-container">
+    <div class="chat-container">
+      <!-- Menu para seleção do modo -->
+      <div class="menu-container">
+        <select v-model="selectedMode">
+          <option value="1">Modo 1</option>
+          <option value="2">Modo 2</option>
+        </select>
+      </div>
       <!-- Renderize as mensagens existentes -->
-      <div v-for="message in messageHistory" :key="message.id" class="message">
-        <div v-if="message.fromUser" class="user-message">
-          {{ message.text }}
-        </div>
-        <div v-else class="server-message">
-          {{ message.text }}
+      <div class="messages-container">
+        <div v-for="message in messageHistory" :key="message.id" class="message">
+          <div v-if="message.loading" class="server-message">
+            Carregando...
+          </div>
+          <div v-else-if="message.fromUser" class="user-message">
+            {{ message.text }}
+          </div>
+          <div v-else class="server-message">
+            {{ message.text }}
+          </div>
         </div>
       </div>
       <!-- Componente InputField para o campo de entrada -->
-      <InputField @user-message="handleUserMessage" />
+      <div class="input-field-container">
+        <InputField @user-message="handleUserMessage" />
+      </div>
     </div>
   </div>
 </template>
@@ -23,14 +38,21 @@ export default {
   data() {
     return {
       messageHistory: [], // Array para armazenar histórico de mensagens
+      selectedMode: '1', // Modo selecionado no menu
     };
   },
   methods: {
     async handleUserMessage(userInput) {
+      const messageId = Date.now();
+      this.messageHistory.push({ id: messageId, text: userInput, fromUser: true, loading: false });
+      this.messageHistory.push({ id: messageId + 1, text: "Carregando...", fromUser: false, loading: true });
+      
+      let lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId + 1); // Declaração movida para fora do try
+
       try {
-        const responseFromBackend = await fetch("https://66db-35-245-150-41.ngrok-free.app/EnviarMsg", {
+        const responseFromBackend = await fetch("https://f444-35-245-150-41.ngrok-free.app/EnviarMsg", {
           method: "POST",
-          body: JSON.stringify({ mensagem: userInput }),
+          body: JSON.stringify({ mensagem: userInput, modo: this.selectedMode }),
           headers: {
             "Content-Type": "application/json",
           },
@@ -38,13 +60,14 @@ export default {
 
         if (responseFromBackend.ok) {
           const responseBody = await responseFromBackend.json();
-          this.messageHistory.push({ id: Date.now(), text: userInput, fromUser: true });
-          this.messageHistory.push({ id: Date.now() + 1, text: responseBody.resposta, fromUser: false });
+          this.messageHistory[lastMessageIndex] = { id: messageId + 1, text: responseBody.resposta, fromUser: false, loading: false };
         } else {
           console.error("Erro na resposta do servidor:", responseFromBackend.status);
+          this.messageHistory.splice(lastMessageIndex, 1); // Remove o indicador de carregamento
         }
       } catch (error) {
         console.error("Erro na chamada para o back-end:", error);
+        this.messageHistory.splice(lastMessageIndex, 1); // Remove o indicador de carregamento
       }
     },
   },
@@ -55,9 +78,13 @@ export default {
 </script>
 
 <style scoped>
+.menu-container {
+  margin: 20px;
+  text-align: center;
+}
 
 .chat-container {
-  max-width: 66.67%; /* 2/3 do espaço */
+  max-width: 66.67%;
   margin: 0 auto;
   padding: 20px;
   background-color: #20202070; 
@@ -65,7 +92,14 @@ export default {
   position: relative;
   background-size: cover;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.messages-container {
   overflow-y: auto;
+  flex-grow: 1;
+  margin-bottom: 10px; /* Espaço extra para o último item */
 }
 
 .message {
@@ -74,11 +108,14 @@ export default {
 
 .user-message,
 .server-message {
-  display: inline-block; /* Ajusta ao tamanho do texto */
+  display: block; /* Alterado de inline-block para block */
   padding: 10px;
   border-radius: 10px;
   color: white;
-  margin-top: 10px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  width: auto; /* Garante que ocupe a largura disponível */
+  clear: both; /* Resolve problemas quando se misturam float e block */
 }
 
 .user-message {
@@ -86,13 +123,16 @@ export default {
   text-align: right;
   margin-left: auto;
   float: right;
-  /* padding-bottom: 4px;
-  padding-top: 4px; */
 }
 
 .server-message {
   background-color: #333030e3;
   text-align: left;
+}
+
+.input-field-container {
+  margin-top: auto; /* Mantém na parte inferior */
+  padding-bottom: 40px; /* Espaço extra para o input */
 }
 
 .background-container {
@@ -103,6 +143,14 @@ export default {
   height: 100%;
   background-image: url("https://img.freepik.com/vetores-gratis/conceito-de-fundo-ondulado_23-2148497712.jpg?size=626&ext=jpg");
   background-size: cover;
-  overflow-y: auto;
+}
+
+.server-message,
+.loading-message { /* Estilo para mensagens de carregamento */
+  background-color: #333030e3;
+  text-align: left;
+  float: left;
+  /*margin-left: 20px;  Garante um pouco de espaço no lado esquerdo */
 }
 </style>
+
