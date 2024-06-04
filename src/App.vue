@@ -25,38 +25,62 @@
       </div>
       <!-- Componente InputField para o campo de entrada -->
       <div class="input-field-container">
-        <InputField @user-message="handleUserMessage" />
+        <InputField :isConnected="isConnected" @user-message="handleUserMessage" />
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import io from 'socket.io-client';
 import InputField from './components/InputField.vue';
+import { io } from 'socket.io-client';
 
 export default {
   data() {
     return {
       socket: null,
-      messageHistory: [], // Array para armazenar histórico de mensagens
-      selectedMode: '0', // Modo selecionado no menu
-      isConnected: false, // Status da conexão WebSocket
+      messageHistory: [],
+      selectedMode: '0',
+      isConnected: false,
     };
   },
   created() {
-    this.socket = io('http://localhost:5000');
-    this.socket.on('connect', () => {
+    const ngrokUrl = 'https://b3ed-34-105-87-204.ngrok-free.app';
+    this.socket = io(ngrokUrl, { transports: ['websocket'] });
+
+    this.socket.on('connected', () => {
       this.isConnected = true;
+      console.log('Connected to WebSocket server.');
     });
-    this.socket.on('disconnect', () => {
+
+    this.socket.on('disconnected', () => {
       this.isConnected = false;
+      console.log('Disconnected from WebSocket server.');
     });
+
+    this.socket.on('connection_response', (data) => {
+      console.log('Connection response:', data);
+    });
+
+    this.socket.on('connection_response', (data) => {
+      if (data.status === 'connected') {
+        this.isConnected = true;
+        console.log('Connected to WebSocket server.');
+      } else {
+        this.isConnected = false;
+        console.log('Disconnected from WebSocket server.');
+      }
+    });
+
+
     this.socket.on('msg_response', (responseBody) => {
-      const messageId = Date.now() + 1; // Usar um identificador único para a mensagem
-      const lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId); // Encontre o índice da última mensagem
+      const messageId = Date.now() + 1;
+      console.log('Received message response:', responseBody);
+      const lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId);
       if (lastMessageIndex !== -1) {
         this.messageHistory[lastMessageIndex] = { id: messageId, text: responseBody.resposta, fromUser: false, loading: false };
+      } else {
+        this.messageHistory.push({ id: messageId, text: responseBody.resposta, fromUser: false, loading: false });
       }
     });
   },
@@ -66,26 +90,18 @@ export default {
     }
   },
   methods: {
-    async handleUserMessage(userInput) {
+    handleUserMessage(userInput) {
       const messageId = Date.now();
-      this.messageHistory.push({ id: messageId, text: userInput, fromUser: true, loading: false });
-      this.messageHistory.push({ id: messageId + 1, text: "Carregando...", fromUser: false, loading: true });
-
-      let lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId + 1); // Declaração movida para fora do try
+      this.messageHistory.push({ id: messageId, text: userInput, fromUser: true, loading: true });
 
       try {
-        // Enviar mensagem para o servidor WebSocket
-        this.socket.emit('EnviarMsg', { mensagem: userInput, modo: this.selectedMode });
-
-        // Aguardar a resposta do servidor WebSocket
-        this.socket.on('msg_response', (responseBody) => {
-          this.messageHistory[lastMessageIndex] = { id: messageId + 1, text: responseBody.resposta, fromUser: false, loading: false };
-        });
+        console.log('Sending message to WebSocket:', userInput);
+        this.socket.emit('EnviarMsg', { id: messageId, mensagem: userInput, modo: this.selectedMode });
       } catch (error) {
         console.error("Erro na chamada para o back-end:", error);
-        this.messageHistory.splice(lastMessageIndex, 1); // Remove o indicador de carregamento
+        this.messageHistory = this.messageHistory.filter(message => message.id !== messageId);
       }
-    }
+    },
   },
   components: {
     InputField,
