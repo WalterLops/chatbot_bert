@@ -5,8 +5,8 @@
       <!-- Menu para seleção do modo -->
       <div class="menu-container">
         <select v-model="selectedMode">
-          <option value="1">Modo 1</option>
-          <option value="2">Modo 2</option>
+          <option value="0">Modo BERT base</option>
+          <option value="1">Modo BERT large</option>
         </select>
       </div>
       <!-- Renderize as mensagens existentes -->
@@ -38,7 +38,7 @@ export default {
   data() {
     return {
       messageHistory: [], // Array para armazenar histórico de mensagens
-      selectedMode: '1', // Modo selecionado no menu
+      selectedMode: '0', // Modo selecionado no menu
     };
   },
   methods: {
@@ -50,7 +50,7 @@ export default {
       let lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId + 1); // Declaração movida para fora do try
 
       try {
-        const responseFromBackend = await fetch("https://f444-35-245-150-41.ngrok-free.app/EnviarMsg", {
+        const responseFromBackend = await fetch("https://b3be-34-106-27-38.ngrok-free.app/EnviarMsg", {
           method: "POST",
           body: JSON.stringify({ mensagem: userInput, modo: this.selectedMode }),
           headers: {
