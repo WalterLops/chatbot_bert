@@ -2,6 +2,10 @@
     <div class="input-field">
         <input v-model="userInput" @keyup.enter="sendMessage" placeholder="Digite sua mensagem..." />
         <button @click="sendMessage">Enviar</button>
+        <div>
+        <div v-if="isConnected" class="ball green"></div>
+        <div v-else class="ball red"></div>
+      </div>
     </div>
 </template>
 
@@ -45,4 +49,20 @@ export default {
         cursor: pointer;
     }
 }
+
+.ball {
+  width: 20px;
+  height: 20px;
+  border-radius: 100%;
+  margin: 15px;
+}
+
+.green {
+  background-color: green;
+}
+
+.red {
+  background-color: red;
+}
+
 </style>

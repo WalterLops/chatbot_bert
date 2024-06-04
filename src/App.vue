@@ -32,44 +32,60 @@
 </template>
 
 <script>
+import io from 'socket.io-client';
 import InputField from './components/InputField.vue';
 
 export default {
   data() {
     return {
+      socket: null,
       messageHistory: [], // Array para armazenar histórico de mensagens
       selectedMode: '0', // Modo selecionado no menu
+      isConnected: false, // Status da conexão WebSocket
     };
+  },
+  created() {
+    this.socket = io('http://localhost:5000');
+    this.socket.on('connect', () => {
+      this.isConnected = true;
+    });
+    this.socket.on('disconnect', () => {
+      this.isConnected = false;
+    });
+    this.socket.on('msg_response', (responseBody) => {
+      const messageId = Date.now() + 1; // Usar um identificador único para a mensagem
+      const lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId); // Encontre o índice da última mensagem
+      if (lastMessageIndex !== -1) {
+        this.messageHistory[lastMessageIndex] = { id: messageId, text: responseBody.resposta, fromUser: false, loading: false };
+      }
+    });
+  },
+  beforeUnmount() {
+    if (this.socket) {
+      this.socket.close();
+    }
   },
   methods: {
     async handleUserMessage(userInput) {
       const messageId = Date.now();
       this.messageHistory.push({ id: messageId, text: userInput, fromUser: true, loading: false });
       this.messageHistory.push({ id: messageId + 1, text: "Carregando...", fromUser: false, loading: true });
-      
+
       let lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId + 1); // Declaração movida para fora do try
 
       try {
-        const responseFromBackend = await fetch("https://b3be-34-106-27-38.ngrok-free.app/EnviarMsg", {
-          method: "POST",
-          body: JSON.stringify({ mensagem: userInput, modo: this.selectedMode }),
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        // Enviar mensagem para o servidor WebSocket
+        this.socket.emit('EnviarMsg', { mensagem: userInput, modo: this.selectedMode });
 
-        if (responseFromBackend.ok) {
-          const responseBody = await responseFromBackend.json();
+        // Aguardar a resposta do servidor WebSocket
+        this.socket.on('msg_response', (responseBody) => {
           this.messageHistory[lastMessageIndex] = { id: messageId + 1, text: responseBody.resposta, fromUser: false, loading: false };
-        } else {
-          console.error("Erro na resposta do servidor:", responseFromBackend.status);
-          this.messageHistory.splice(lastMessageIndex, 1); // Remove o indicador de carregamento
-        }
+        });
       } catch (error) {
         console.error("Erro na chamada para o back-end:", error);
         this.messageHistory.splice(lastMessageIndex, 1); // Remove o indicador de carregamento
       }
-    },
+    }
   },
   components: {
     InputField,
@@ -87,7 +103,7 @@ export default {
   max-width: 66.67%;
   margin: 0 auto;
   padding: 20px;
-  background-color: #20202070; 
+  background-color: #20202070;
   border-radius: 10px;
   position: relative;
   background-size: cover;
@@ -99,7 +115,8 @@ export default {
 .messages-container {
   overflow-y: auto;
   flex-grow: 1;
-  margin-bottom: 10px; /* Espaço extra para o último item */
+  margin-bottom: 10px;
+  /* Espaço extra para o último item */
 }
 
 .message {
@@ -108,14 +125,17 @@ export default {
 
 .user-message,
 .server-message {
-  display: block; /* Alterado de inline-block para block */
+  display: block;
+  /* Alterado de inline-block para block */
   padding: 10px;
   border-radius: 10px;
   color: white;
   margin-top: 5px;
   margin-bottom: 5px;
-  width: auto; /* Garante que ocupe a largura disponível */
-  clear: both; /* Resolve problemas quando se misturam float e block */
+  width: auto;
+  /* Garante que ocupe a largura disponível */
+  clear: both;
+  /* Resolve problemas quando se misturam float e block */
 }
 
 .user-message {
@@ -131,8 +151,10 @@ export default {
 }
 
 .input-field-container {
-  margin-top: auto; /* Mantém na parte inferior */
-  padding-bottom: 40px; /* Espaço extra para o input */
+  margin-top: auto;
+  /* Mantém na parte inferior */
+  padding-bottom: 40px;
+  /* Espaço extra para o input */
 }
 
 .background-container {
@@ -146,11 +168,11 @@ export default {
 }
 
 .server-message,
-.loading-message { /* Estilo para mensagens de carregamento */
+.loading-message {
+  /* Estilo para mensagens de carregamento */
   background-color: #333030e3;
   text-align: left;
   float: left;
   /*margin-left: 20px;  Garante um pouco de espaço no lado esquerdo */
 }
 </style>
-
