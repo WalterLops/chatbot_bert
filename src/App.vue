@@ -26,16 +26,23 @@
       <!-- Componente InputField para o campo de entrada -->
       <div class="input-field-container">
         <InputField :isConnected="isConnected" @user-message="handleUserMessage" />
+        <div class="message-history">
+      <div v-for="message in messageHistory" :key="message.id" :class="{ 'user-message': message.fromUser, 'response-message': !message.fromUser }">
+        {{ message.text }}
+      </div>
+    </div>
       </div>
     </div>
   </div>
 </template>
 
-<script>
-import InputField from './components/InputField.vue';
-import { io } from 'socket.io-client';
+<script>import InputField from './components/InputField.vue';
+import { io } from "socket.io-client";
 
 export default {
+  components: {
+    InputField,
+  },
   data() {
     return {
       socket: null,
@@ -45,40 +52,38 @@ export default {
     };
   },
   created() {
-    const ngrokUrl = 'https://b3ed-34-105-87-204.ngrok-free.app';
-    this.socket = io(ngrokUrl, { transports: ['websocket'] });
+    const ngrokUrl = 'https://62ae-34-86-198-73.ngrok-free.app'; // Substitua pelo URL gerado pelo ngrok
+    console.log(`Connecting to WebSocket at: ${ngrokUrl}`);
 
-    this.socket.on('connected', () => {
+    this.socket = io(ngrokUrl, {
+      transports: ['websocket']
+    });
+
+    this.socket.on('connect', () => {
       this.isConnected = true;
       console.log('Connected to WebSocket server.');
     });
 
-    this.socket.on('disconnected', () => {
+    this.socket.on('disconnect', () => {
       this.isConnected = false;
       console.log('Disconnected from WebSocket server.');
     });
 
     this.socket.on('connection_response', (data) => {
+      if (data.status === 'connected') {
+        this.isConnected = true;
+      } else {
+        this.isConnected = false;
+      }
       console.log('Connection response:', data);
     });
 
-    this.socket.on('connection_response', (data) => {
-      if (data.status === 'connected') {
-        this.isConnected = true;
-        console.log('Connected to WebSocket server.');
-      } else {
-        this.isConnected = false;
-        console.log('Disconnected from WebSocket server.');
-      }
-    });
-
-
     this.socket.on('msg_response', (responseBody) => {
-      const messageId = Date.now() + 1;
+      const messageId = responseBody.id;
       console.log('Received message response:', responseBody);
-      const lastMessageIndex = this.messageHistory.findIndex(message => message.id === messageId);
-      if (lastMessageIndex !== -1) {
-        this.messageHistory[lastMessageIndex] = { id: messageId, text: responseBody.resposta, fromUser: false, loading: false };
+      const messageIndex = this.messageHistory.findIndex(message => message.id === messageId);
+      if (messageIndex !== -1) {
+        this.messageHistory[messageIndex] = { id: messageId, text: responseBody.resposta, fromUser: false, loading: false };
       } else {
         this.messageHistory.push({ id: messageId, text: responseBody.resposta, fromUser: false, loading: false });
       }
@@ -99,15 +104,13 @@ export default {
         this.socket.emit('EnviarMsg', { id: messageId, mensagem: userInput, modo: this.selectedMode });
       } catch (error) {
         console.error("Erro na chamada para o back-end:", error);
-        this.messageHistory = this.messageHistory.filter(message => message.id !== messageId);
+        this.messageHistory = this.messageHistory.filter(message => message.id !== messageId); // Remove a mensagem de carregamento
       }
     },
   },
-  components: {
-    InputField,
-  },
 };
 </script>
+
 
 <style scoped>
 .menu-container {
