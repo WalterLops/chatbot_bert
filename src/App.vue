@@ -17,7 +17,13 @@
             Carregando...
           </div>
           <div v-else>
-            {{ message.text }}
+            <div v-if="message.msg">
+              <div><strong>Mensagem:</strong> {{ message.msg.mensagem }}</div>
+              <div><strong>Tempo:</strong> {{ message.msg.tempoMsg }}</div>
+            </div>
+            <div v-else>
+              <div>{{ message.text }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -127,12 +133,18 @@ export default {
       });
 
       this.socket.on('msg_response', (responseBody) => {
+
+        const { mensagem, tempoMsg } = responseBody;
+        const msg = { mensagem, tempoMsg };
+
         const messageIndex = this.messageHistory.findIndex(message => message.id === this.loadingId);
+
         if (messageIndex !== -1) {
-          this.messageHistory[messageIndex] = { id: responseBody.id, text: responseBody.resposta, fromUser: false, loading: false };
+          this.messageHistory[messageIndex] = { id: responseBody.id, text: '', fromUser: false, loading: false, msg };
         } else {
-          this.messageHistory.push({ id: responseBody.id, text: responseBody.resposta, fromUser: false, loading: false });
+          this.messageHistory.push({ id: responseBody.id, text: '', fromUser: false, loading: false, msg });
         }
+        
       });
     },
     handleUserMessage(userInput) {
