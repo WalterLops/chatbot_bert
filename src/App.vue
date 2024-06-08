@@ -55,10 +55,9 @@ export default {
     };
   },
   created() {
-    this.loadConfig()
-      .then(() => {
-        this.initializeGoogleAPI();
-      });
+    this.loadConfig().then(() => {
+      this.connectWebSocket();
+    });
   },
   methods: {
     async loadConfig() {
@@ -67,45 +66,7 @@ export default {
       this.apiKey = config.apiKey;
       this.clientId = config.clientId;
       this.folderId = config.folderId;
-    },
-    initializeGoogleAPI() {
-      if (gapi && gapi.load) {
-        gapi.load('client:auth2', () => {
-          gapi.client.init({
-            clientId: this.clientId,
-            apiKey: this.apiKey,
-            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-            scope: 'https://www.googleapis.com/auth/drive.readonly',
-          }).then(() => {
-            gapi.auth2.getAuthInstance().signIn().then(() => {
-              this.loadNgrokUrl();
-            }).catch((error) => {
-              console.error('Erro ao autenticar:', error);
-            });
-          });
-        });
-      } else {
-        console.error('gapi not loaded properly');
-      }
-    },
-    loadNgrokUrl() {
-      const folderId = this.folderId;
-      gapi.client.drive.files.list({
-        'pageSize': 10,
-        'fields': "nextPageToken, files(id, name)",
-        'q': `'${folderId}' in parents and name='ngrok_url.txt'`
-      }).then(response => {
-        const file = response.result.files[0];
-        if (file) {
-          gapi.client.drive.files.get({
-            fileId: file.id,
-            alt: 'media'
-          }).then(response => {
-            this.ngrokUrl = response.body;
-            this.connectWebSocket();
-          });
-        }
-      });
+      this.ngrokUrl = config.ngrokUrl;
     },
     connectWebSocket() {
       console.log(`Connecting to WebSocket at: ${this.ngrokUrl}`);
@@ -144,7 +105,7 @@ export default {
         } else {
           this.messageHistory.push({ id: responseBody.id, text: '', fromUser: false, loading: false, msg });
         }
-        
+
       });
     },
     handleUserMessage(userInput) {
