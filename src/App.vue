@@ -5,20 +5,18 @@
       <!-- Menu para seleção do modo -->
       <div class="menu-container">
         <select v-model="selectedMode">
-          <option value="0">Modo BERT base</option>
-          <option value="1">Modo BERT large</option>
+          <option value="0">Modo 0</option>
+          <option value="1">Modo 1</option>
         </select>
       </div>
       <!-- Renderize as mensagens existentes -->
       <div class="messages-container">
-        <div v-for="message in messageHistory" :key="message.id" class="message">
-          <div v-if="message.loading" class="server-message">
+        <div v-for="message in messageHistory" :key="message.id"
+          :class="['message', { 'user-message': message.fromUser, 'server-message': !message.fromUser }]">
+          <div v-if="message.loading">
             Carregando...
           </div>
-          <div v-else-if="message.fromUser" class="user-message">
-            {{ message.text }}
-          </div>
-          <div v-else class="server-message">
+          <div v-else>
             {{ message.text }}
           </div>
         </div>
@@ -26,18 +24,15 @@
       <!-- Componente InputField para o campo de entrada -->
       <div class="input-field-container">
         <InputField :isConnected="isConnected" @user-message="handleUserMessage" />
-        <div class="message-history">
-      <div v-for="message in messageHistory" :key="message.id" :class="{ 'user-message': message.fromUser, 'response-message': !message.fromUser }">
-        {{ message.text }}
-      </div>
-    </div>
       </div>
     </div>
   </div>
 </template>
 
-<script>import InputField from './components/InputField.vue';
+<script>
+import InputField from './components/InputField.vue';
 import { io } from "socket.io-client";
+import { gapi } from 'gapi-script';
 
 export default {
   components: {
@@ -49,62 +44,109 @@ export default {
       messageHistory: [],
       selectedMode: '0',
       isConnected: false,
+      ngrokUrl: '',
+      loadingId: 0
     };
   },
   created() {
-    const ngrokUrl = 'https://62ae-34-86-198-73.ngrok-free.app'; // Substitua pelo URL gerado pelo ngrok
-    console.log(`Connecting to WebSocket at: ${ngrokUrl}`);
-
-    this.socket = io(ngrokUrl, {
-      transports: ['websocket']
-    });
-
-    this.socket.on('connect', () => {
-      this.isConnected = true;
-      console.log('Connected to WebSocket server.');
-    });
-
-    this.socket.on('disconnect', () => {
-      this.isConnected = false;
-      console.log('Disconnected from WebSocket server.');
-    });
-
-    this.socket.on('connection_response', (data) => {
-      if (data.status === 'connected') {
-        this.isConnected = true;
-      } else {
-        this.isConnected = false;
-      }
-      console.log('Connection response:', data);
-    });
-
-    this.socket.on('msg_response', (responseBody) => {
-      const messageId = responseBody.id;
-      console.log('Received message response:', responseBody);
-      const messageIndex = this.messageHistory.findIndex(message => message.id === messageId);
-      if (messageIndex !== -1) {
-        this.messageHistory[messageIndex] = { id: messageId, text: responseBody.resposta, fromUser: false, loading: false };
-      } else {
-        this.messageHistory.push({ id: messageId, text: responseBody.resposta, fromUser: false, loading: false });
-      }
-    });
-  },
-  beforeUnmount() {
-    if (this.socket) {
-      this.socket.close();
-    }
+    this.loadConfig()
+      .then(() => {
+        this.initializeGoogleAPI();
+      });
   },
   methods: {
+    async loadConfig() {
+      const response = await fetch('/config.json');
+      const config = await response.json();
+      this.apiKey = config.apiKey;
+      this.clientId = config.clientId;
+      this.folderId = config.folderId;
+    },
+    initializeGoogleAPI() {
+      if (gapi && gapi.load) {
+        gapi.load('client:auth2', () => {
+          gapi.client.init({
+            clientId: this.clientId,
+            apiKey: this.apiKey,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+            scope: 'https://www.googleapis.com/auth/drive.readonly',
+          }).then(() => {
+            gapi.auth2.getAuthInstance().signIn().then(() => {
+              this.loadNgrokUrl();
+            }).catch((error) => {
+              console.error('Erro ao autenticar:', error);
+            });
+          });
+        });
+      } else {
+        console.error('gapi not loaded properly');
+      }
+    },
+    loadNgrokUrl() {
+      const folderId = this.folderId;
+      gapi.client.drive.files.list({
+        'pageSize': 10,
+        'fields': "nextPageToken, files(id, name)",
+        'q': `'${folderId}' in parents and name='ngrok_url.txt'`
+      }).then(response => {
+        const file = response.result.files[0];
+        if (file) {
+          gapi.client.drive.files.get({
+            fileId: file.id,
+            alt: 'media'
+          }).then(response => {
+            this.ngrokUrl = response.body;
+            this.connectWebSocket();
+          });
+        }
+      });
+    },
+    connectWebSocket() {
+      console.log(`Connecting to WebSocket at: ${this.ngrokUrl}`);
+      this.socket = io(this.ngrokUrl, {
+        transports: ['websocket']
+      });
+
+      this.socket.on('connect', () => {
+        this.isConnected = true;
+        console.log('Connected to WebSocket server.');
+      });
+
+      this.socket.on('disconnect', () => {
+        this.isConnected = false;
+        console.log('Disconnected from WebSocket server.');
+      });
+
+      this.socket.on('connection_response', (data) => {
+        if (data.status === 'connected') {
+          this.isConnected = true;
+        } else {
+          this.isConnected = false;
+        }
+        console.log('Connection response:', data);
+      });
+
+      this.socket.on('msg_response', (responseBody) => {
+        const messageIndex = this.messageHistory.findIndex(message => message.id === this.loadingId);
+        if (messageIndex !== -1) {
+          this.messageHistory[messageIndex] = { id: responseBody.id, text: responseBody.resposta, fromUser: false, loading: false };
+        } else {
+          this.messageHistory.push({ id: responseBody.id, text: responseBody.resposta, fromUser: false, loading: false });
+        }
+      });
+    },
     handleUserMessage(userInput) {
       const messageId = Date.now();
-      this.messageHistory.push({ id: messageId, text: userInput, fromUser: true, loading: true });
+      this.loadingId = `loading-${messageId}`;
+      this.messageHistory.push({ id: messageId, text: userInput, fromUser: true, loading: false });
+      this.messageHistory.push({ id: this.loadingId, text: 'Carregando...', fromUser: false, loading: true });
 
       try {
         console.log('Sending message to WebSocket:', userInput);
         this.socket.emit('EnviarMsg', { id: messageId, mensagem: userInput, modo: this.selectedMode });
       } catch (error) {
         console.error("Erro na chamada para o back-end:", error);
-        this.messageHistory = this.messageHistory.filter(message => message.id !== messageId); // Remove a mensagem de carregamento
+        this.messageHistory = this.messageHistory.filter(message => message.id !== this.loadingId); // Remove a mensagem de carregamento
       }
     },
   },
@@ -193,5 +235,17 @@ export default {
   text-align: left;
   float: left;
   /*margin-left: 20px;  Garante um pouco de espaço no lado esquerdo */
+}
+
+.message-history {
+  margin-top: 20px;
+}
+
+.user-message {
+  text-align: right;
+}
+
+.response-message {
+  text-align: left;
 }
 </style>
