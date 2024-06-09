@@ -2,12 +2,8 @@
 <template>
   <div class="background-container">
     <div class="chat-container">
-      <!-- Menu para seleção do modo -->
-      <div class="menu-container">
-        <select v-model="selectedMode">
-          <option value="0">Modo 0</option>
-          <option value="1">Modo 1</option>
-        </select>
+      <div class="header">
+        <h1>ChatBERT</h1>
       </div>
       <!-- Renderize as mensagens existentes -->
       <div class="messages-container">
@@ -19,7 +15,7 @@
           <div v-else>
             <div v-if="message.msg">
               <div><strong>Mensagem:</strong> {{ message.msg.mensagem }}</div>
-              <div><strong>Tempo:</strong> {{ message.msg.tempoMsg }}</div>
+              <div class="tempo"><strong>Tempo:</strong> {{ message.msg.tempoMsg }}</div>
             </div>
             <div v-else>
               <div>{{ message.text }}</div>
@@ -123,11 +119,25 @@ export default {
       }
     },
   },
-};
+}; 
 </script>
 
 
 <style scoped>
+
+.header {
+  text-align: center;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
 .menu-container {
   margin: 20px;
   text-align: center;
@@ -197,14 +207,15 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url("https://img.freepik.com/vetores-gratis/conceito-de-fundo-ondulado_23-2148497712.jpg?size=626&ext=jpg");
+  /*-image: url("https://img.freepik.com/vetores-gratis/conceito-de-fundo-ondulado_23-2148497712.jpg?size=626&ext=jpg");*/
+  background-color: rgba(12, 11, 11, 0.815);
   background-size: cover;
 }
 
 .server-message,
 .loading-message {
   /* Estilo para mensagens de carregamento */
-  background-color: #333030e3;
+  background-color: #484545e3;
   text-align: left;
   float: left;
   /*margin-left: 20px;  Garante um pouco de espaço no lado esquerdo */
@@ -216,6 +227,10 @@ export default {
 
 .user-message {
   text-align: right;
+}
+
+.tempo{
+  font-size: 14px;
 }
 
 .response-message {

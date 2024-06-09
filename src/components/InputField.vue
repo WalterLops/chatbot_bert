@@ -1,8 +1,16 @@
 <template>
   <div class="input-field">
-    <input v-model="userInput" @keyup.enter="sendMessage" placeholder="Digite sua mensagem..." />
+    <input 
+      v-model="userInput" 
+      @input="checkWordLimit" 
+      @keyup.enter="sendMessage" 
+      placeholder="Digite sua mensagem..." 
+    />
     <button @click="sendMessage">Enviar</button>
     <div :class="['ball', isConnected ? 'green' : 'red']"></div>
+    <div class="word-count">
+      <span>{{ wordCount }}/{{ wordLimit }} palavras</span>
+    </div>
   </div>
 </template>
 
@@ -12,12 +20,26 @@ export default {
   data() {
     return {
       userInput: "",
+      wordLimit: 22, // Define o limite de palavras aqui
     };
+  },
+  computed: {
+    wordCount() {
+      return this.userInput.trim().split(/\s+/).filter(word => word).length;
+    }
   },
   methods: {
     sendMessage() {
-      this.$emit("user-message", this.userInput);
-      this.userInput = "";
+      if (this.wordCount <= this.wordLimit) {
+        this.$emit("user-message", this.userInput);
+        this.userInput = "";
+      }
+    },
+    checkWordLimit() {
+      const words = this.userInput.trim().split(/\s+/).filter(word => word);
+      if (words.length > this.wordLimit) {
+        this.userInput = words.slice(0, this.wordLimit).join(" ");
+      }
     },
   },
 };
@@ -59,5 +81,10 @@ button {
 
 .red {
   background-color: red;
+}
+
+.word-count {
+  margin-left: 8px;
+  color: white;
 }
 </style>
