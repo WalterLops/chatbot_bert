@@ -34,7 +34,6 @@
 <script>
 import InputField from './components/InputField.vue';
 import { io } from "socket.io-client";
-import { gapi } from 'gapi-script';
 
 export default {
   components: {

@@ -1,4 +1,4 @@
-# chat_app
+# chatbot_bert
 
 ## Project setup
 ```
