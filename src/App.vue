@@ -5,7 +5,7 @@
       <div class="header">
         <h1>ChatBERT</h1>
       </div>
-      <!-- Renderize as mensagens existentes -->
+      <!-- Renderiza as mensagens existentes -->
       <div class="messages-container">
         <div v-for="message in messageHistory" :key="message.id"
           :class="['message', { 'user-message': message.fromUser, 'server-message': !message.fromUser }]">
@@ -159,7 +159,6 @@ h1 {
   overflow-y: auto;
   flex-grow: 1;
   margin-bottom: 10px;
-  /* Espaço extra para o último item */
 }
 
 .message {
@@ -169,16 +168,13 @@ h1 {
 .user-message,
 .server-message {
   display: block;
-  /* Alterado de inline-block para block */
   padding: 10px;
   border-radius: 10px;
   color: white;
   margin-top: 5px;
   margin-bottom: 5px;
   width: auto;
-  /* Garante que ocupe a largura disponível */
-  clear: both;
-  /* Resolve problemas quando se misturam float e block */
+  clear: both; /* Resolve problemas quando se misturam float e block */
 }
 
 .user-message {
@@ -195,9 +191,7 @@ h1 {
 
 .input-field-container {
   margin-top: auto;
-  /* Mantém na parte inferior */
   padding-bottom: 40px;
-  /* Espaço extra para o input */
 }
 
 .background-container {
@@ -206,18 +200,15 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  /*-image: url("https://img.freepik.com/vetores-gratis/conceito-de-fundo-ondulado_23-2148497712.jpg?size=626&ext=jpg");*/
   background-color: rgba(12, 11, 11, 0.815);
   background-size: cover;
 }
 
 .server-message,
 .loading-message {
-  /* Estilo para mensagens de carregamento */
   background-color: #484545e3;
   text-align: left;
   float: left;
-  /*margin-left: 20px;  Garante um pouco de espaço no lado esquerdo */
 }
 
 .message-history {
